@@ -1,4 +1,7 @@
+require 'twilio-ruby'
+
 class PostsController < ApplicationController
+  before_action :authenticate_user!
   before_action :set_post, only: [:show, :edit, :update, :destroy]
 
   # GET /posts
@@ -14,7 +17,7 @@ class PostsController < ApplicationController
 
   # GET /posts/new
   def new
-    @post = Post.new
+    @post = current_user.posts.build
   end
 
   # GET /posts/1/edit
@@ -24,12 +27,15 @@ class PostsController < ApplicationController
   # POST /posts
   # POST /posts.json
   def create
-    @post = Post.new(post_params)
+    @post = current_user.posts.build(post_params)
 
     respond_to do |format|
       if @post.save
         format.html { redirect_to @post, notice: 'Post was successfully created.' }
         format.json { render :show, status: :created, location: @post }
+
+        send_text_message
+
       else
         format.html { render :new }
         format.json { render json: @post.errors, status: :unprocessable_entity }
@@ -70,5 +76,21 @@ class PostsController < ApplicationController
     # Never trust parameters from the scary internet, only allow the white list through.
     def post_params
       params.require(:post).permit(:name, :body)
+    end
+
+    def send_text_message
+      number_to_send_to = current_user.phone
+
+      twilio_sid = "my_twilio_sid"
+      twilio_token = "my_twilio_token"
+      twilio_phone_number = "my_twilio_number"
+
+      @twilio_client = Twilio::REST::Client.new twilio_sid, twilio_token
+
+      @twilio_client.account.sms.messages.create(
+          from: "+1#{twilio_phone_number}",
+          to: number_to_send_to,
+          body: @post.body
+        )
     end
 end
